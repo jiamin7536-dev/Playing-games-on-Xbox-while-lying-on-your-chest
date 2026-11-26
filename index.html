@@ -1,0 +1,1422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chest Xbox - Mario Adventure</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body {
+  width: 100%; height: 100%;
+  background: #1a1a2e;
+  overflow: hidden;
+  font-family: 'Segoe UI', Tahoma, sans-serif;
+  user-select: none;
+  -webkit-user-select: none;
+}
+body {
+  display: flex; justify-content: center; align-items: center;
+}
+#wrapper {
+  position: relative;
+  width: 1200px; height: 700px;
+  flex-shrink: 0;
+  transform-origin: center center;
+}
+/* Girl image stack: girl.png = normal (default visible), 2.jpg = reaction (hidden) */
+.girl-img {
+  position: absolute; top: 180px; left: 316px;
+  width: 569px; height: 462px;
+  object-fit: fill;
+  pointer-events: none;
+  border-radius: 8px;
+  transition: opacity .08s;
+}
+.girl-img-1 { z-index: 1; opacity: 1; }
+.girl-img-2 { z-index: 2; opacity: 0; }
+/* ===== Game screen overlay (above the girl's head) ===== */
+.game-screen {
+  position: absolute;
+  top: 24px; left: 316px;
+  width: 569px; height: 148px;
+  border: 4px solid #e91e8c;
+  border-radius: 10px;
+  box-shadow: 0 0 18px rgba(233,30,140,.6), inset 0 0 6px rgba(0,0,0,.4);
+  background: #5c94fc;
+  overflow: hidden;
+  z-index: 10;
+}
+#gameCanvas {
+  width: 100%; height: 100%;
+  display: block;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+.hud {
+  position: absolute; top: 3px; left: 5px;
+  color: #fff; font-size: 8px; font-weight: bold;
+  text-shadow: 1px 1px 0 #000;
+  z-index: 20; pointer-events: none;
+  line-height: 1.5;
+  letter-spacing: 0.5px;
+}
+.hud .yl { color: #ffe082; }
+.overlay-msg {
+  position: absolute; top: 0; left: 0;
+  width: 100%; height: 100%;
+  display: none;
+  align-items: center; justify-content: center;
+  background: rgba(0,0,0,.75);
+  z-index: 25;
+}
+.overlay-msg.active { display: flex; }
+.overlay-msg .txt {
+  color: #fff; font-size: 16px; font-weight: bold;
+  text-shadow: 3px 3px 0 #e91e8c;
+  text-align: center; line-height: 1.5;
+}
+.start-overlay {
+  position: absolute; top: 0; left: 0;
+  width: 100%; height: 100%;
+  display: flex;
+  align-items: center; justify-content: center;
+  background: rgba(0,0,0,.8);
+  z-index: 30; cursor: pointer;
+}
+.start-overlay.hidden { display: none; }
+.start-overlay .txt {
+  color: #fff; font-size: 13px; font-weight: bold;
+  text-shadow: 2px 2px 0 #e91e8c;
+  text-align: center;
+}
+.start-overlay .sub {
+  color: #ffe082; font-size: 8px; margin-top: 4px;
+}
+/* ===== Chest D-pad (over printed D-pad on shirt, girl scaled 0.8 @ 619,58) ===== */
+.dpad {
+  position: absolute;
+  top: 518px; left: 538px;
+  width: 53px; height: 53px;
+  z-index: 15;
+}
+.dpad-btn {
+  position: absolute;
+  width: 17.6px; height: 17.6px;
+  background: rgba(233,30,140,.55);
+  border: 1px solid #ff6bb5;
+  border-radius: 4px;
+  color: #fff; font-size: 9px; font-weight: bold;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  transition: transform .06s, background .06s, box-shadow .06s;
+  text-shadow: 1px 1px 0 #000;
+}
+.dpad-btn:hover { background: rgba(233,30,140,.7); }
+.dpad-btn.pressed {
+  background: rgba(255,107,181,.95);
+  transform: scale(.88);
+  box-shadow: 0 0 16px #ff6bb5;
+}
+.dpad-up    { top: 0;     left: 17.6px; }
+.dpad-left  { top: 17.6px; left: 0; }
+.dpad-right { top: 17.6px; left: 35.2px; }
+.dpad-down  { top: 35.2px; left: 17.6px; }
+/* ===== Action buttons (over printed buttons on shirt, girl scaled 0.8 @ 619,58) ===== */
+.actions {
+  position: absolute;
+  top: 503px; left: 642px;
+  width: 56px; height: 56px;
+  z-index: 15;
+}
+.act-btn {
+  position: absolute;
+  width: 20.8px; height: 20.8px;
+  border: 1px solid;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  font-size: 10px; font-weight: bold;
+  color: #fff;
+  transition: transform .06s, box-shadow .06s;
+  text-shadow: 1px 1px 0 rgba(0,0,0,.5);
+}
+.act-btn.pressed {
+  transform: scale(.82);
+  box-shadow: 0 0 16px currentColor;
+}
+.act-tri  { top: 1.6px;  left: 17.6px; background: rgba(106,170,58,.75);  border-color: #8bc34a; color: #8bc34a; }
+.act-sq   { top: 17.6px; left: 1.6px;  background: rgba(255,193,7,.75);   border-color: #ffc107; color: #ffc107; }
+.act-ci   { top: 17.6px; left: 33.6px; background: rgba(255,87,34,.75);   border-color: #ff5722; color: #ff5722; }
+.act-x    { top: 33.6px; left: 17.6px; background: rgba(156,39,176,.8);  border-color: #9c27b0; color: #9c27b0; }
+/* key hint labels */
+.key-hint {
+  position: absolute;
+  bottom: -14px; left: 50%;
+  transform: translateX(-50%);
+  font-size: 8px; color: rgba(255,255,255,.5);
+  white-space: nowrap;
+}
+</style>
+</head>
+<body>
+<div id="wrapper">
+  <!-- Girl image: girl.png = normal (default), 2.jpg = pressed reaction -->
+  <img src="girl.png" class="girl-img girl-img-1" alt="girl normal">
+  <img src="2.jpg" class="girl-img girl-img-2" alt="girl pressed">
+
+  <!-- Game screen -->
+  <div class="game-screen">
+    <canvas id="gameCanvas" width="608" height="256"></canvas>
+    <div class="hud" id="hud">
+      <div><span class="yl">MARIO</span> <span id="scoreEl">000000</span></div>
+      <div><span class="yl">COINS</span> x<span id="coinsEl">00</span></div>
+      <div><span class="yl">LIFE</span> x<span id="livesEl">3</span></div>
+      <div><span class="yl">WORLD</span> 1-1</div>
+    </div>
+    <div class="overlay-msg" id="pauseOverlay"><div class="txt">PAUSED<br><span style="font-size:14px;color:#ffe082">Press Triangle to resume</span></div></div>
+    <div class="overlay-msg" id="msgOverlay"><div class="txt" id="msgText"></div></div>
+    <div class="start-overlay" id="startOverlay">
+      <div>
+        <div class="txt">CLICK TO START</div>
+        <div class="sub" style="text-align:center;line-height:1.6">
+          Left D-pad = WASD (move)<br>
+          Right buttons = Arrows (actions)<br>
+          X/Down = Jump | Square/Left = Run+Fire<br>
+          Circle/Right = Spin Jump | Triangle/Up = Pause
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chest D-pad (aligned to printed D-pad on shirt) -->
+  <div class="dpad" id="dpad">
+    <div class="dpad-btn dpad-up"    data-key="KeyW">▲</div>
+    <div class="dpad-btn dpad-left"  data-key="KeyA">◀</div>
+    <div class="dpad-btn dpad-right" data-key="KeyD">▶</div>
+    <div class="dpad-btn dpad-down"  data-key="KeyS">▼</div>
+  </div>
+
+  <!-- Action buttons (aligned to printed buttons on shirt) -->
+  <div class="actions" id="actions">
+    <div class="act-btn act-tri" data-key="ArrowUp">▲</div>
+    <div class="act-btn act-sq"  data-key="ArrowLeft">■</div>
+    <div class="act-btn act-ci"  data-key="ArrowRight">●</div>
+    <div class="act-btn act-x"   data-key="ArrowDown">✖</div>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* ================================================================
+   AUDIO SYSTEM  (Web Audio API synth)
+================================================================ */
+let actx = null;
+function initAudio(){
+  if(!actx) actx = new (window.AudioContext||window.webkitAudioContext)();
+  if(actx.state==='suspended') actx.resume();
+}
+function tone(freq, dur, type='square', vol=0.12){
+  if(!actx) return;
+  const o=actx.createOscillator(), g=actx.createGain();
+  o.type=type; o.frequency.value=freq;
+  g.gain.setValueAtTime(vol, actx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, actx.currentTime+dur);
+  o.connect(g); g.connect(actx.destination);
+  o.start(); o.stop(actx.currentTime+dur);
+}
+function slide(f1,f2,dur,type='square',vol=0.12){
+  if(!actx) return;
+  const o=actx.createOscillator(), g=actx.createGain();
+  o.type=type;
+  o.frequency.setValueAtTime(f1, actx.currentTime);
+  o.frequency.exponentialRampToValueAtTime(f2, actx.currentTime+dur);
+  g.gain.setValueAtTime(vol, actx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, actx.currentTime+dur);
+  o.connect(g); g.connect(actx.destination);
+  o.start(); o.stop(actx.currentTime+dur);
+}
+/* girl voice "ah" — sawtooth vocal source through two formant bandpass filters */
+function sndAh(){
+  if(!actx) return;
+  const t=actx.currentTime;
+  const o=actx.createOscillator();
+  o.type='sawtooth';
+  o.frequency.setValueAtTime(165,t);
+  o.frequency.linearRampToValueAtTime(210,t+0.05);
+  o.frequency.linearRampToValueAtTime(150,t+0.22);
+  const f1=actx.createBiquadFilter();
+  f1.type='bandpass'; f1.frequency.value=780; f1.Q.value=5;
+  const f2=actx.createBiquadFilter();
+  f2.type='bandpass'; f2.frequency.value=1200; f2.Q.value=7;
+  const g=actx.createGain();
+  g.gain.setValueAtTime(0.0001,t);
+  g.gain.exponentialRampToValueAtTime(0.55,t+0.03);
+  g.gain.exponentialRampToValueAtTime(0.22,t+0.1);
+  g.gain.exponentialRampToValueAtTime(0.001,t+0.26);
+  o.connect(f1); f1.connect(g);
+  o.connect(f2); f2.connect(g);
+  g.connect(actx.destination);
+  o.start(t); o.stop(t+0.3);
+}
+const sndJump  = ()=>slide(380,760,0.12,'square',0.1);
+const sndCoin  = ()=>{tone(988,0.05,'square',0.1);setTimeout(()=>tone(1319,0.1,'square',0.1),50);};
+const sndStomp = ()=>tone(140,0.08,'square',0.13);
+const sndBump  = ()=>tone(220,0.06,'square',0.08);
+const sndPower = ()=>{[523,659,784,1047].forEach((f,i)=>setTimeout(()=>tone(f,0.07,'square',0.1),i*55));};
+const sndFire  = ()=>slide(900,180,0.08,'sawtooth',0.08);
+const sndDie   = ()=>{[523,392,330,262].forEach((f,i)=>setTimeout(()=>slide(f,f*0.8,0.14,'square',0.1),i*110));};
+const sndPause = ()=>tone(660,0.06,'square',0.08);
+const sndPipe  = ()=>slide(260,80,0.3,'square',0.1);
+const sndWin   = ()=>{[523,659,784,1047,784,1047,1319].forEach((f,i)=>setTimeout(()=>tone(f,0.13,'square',0.1),i*110));};
+const sndBreak = ()=>{tone(300,0.03,'square',0.08);tone(200,0.05,'square',0.08);};
+
+/* ================================================================
+   CONSTANTS
+================================================================ */
+const TILE=32, CW=608, CH=256, VIEW_TW=19, VIEW_TH=8;
+const GRAVITY=0.55, MAX_FALL=11;
+const WALK=2.2, RUN=4.0, ACCEL=0.35, FRICTION=0.82;
+const JUMP_V=-10.5, RUN_JUMP_V=-12;
+const MAX_FALL_SPEED=11;
+const FIRE_CD=20; // fireball cooldown frames
+
+/* Tile types */
+const T={EMPTY:0,GROUND:1,BRICK:2,QUESTION:3,USED:4,PIPE:5,CASTLE:6,COIN:7,HARD:8,COIN2:9};
+/* solid tiles (block movement) */
+const SOLID=new Set([T.GROUND,T.BRICK,T.QUESTION,T.USED,T.PIPE,T.CASTLE,T.HARD]);
+
+/* ================================================================
+   LEVEL DATA
+   Legend:
+   . empty  G ground  B brick  ? question(coin)  M question(mushroom)
+   F question(fireflower)  P pipe  H castle  C coin  E goomba
+================================================================ */
+const MAIN_LEVEL=[
+"....................................................................................................",
+"....................................................................................................",
+"....................................................................................................",
+"....................................................................................................",
+"............BB?BMB................................................................................",
+"....?B?B?B?.................................BBB.......................................................",
+"..........................................PP......................................................",
+"E.................E..................E....PP...E...................E..........................HHH",
+"GGGGGGGGGGGGGGGGGGGGGGG....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG",
+"GGGGGGGGGGGGGGGGGGGGGGG....GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG",
+];
+/* pad rows to same length */
+function padLevel(L){
+  let m=0; L.forEach(r=>{if(r.length>m)m=r.length;});
+  return L.map(r=>r+'.'.repeat(m-r.length));
+}
+
+const UNDER_LEVEL=padLevel([
+"...............................",
+"...............................",
+"...C.....C.....C.....C.....C...",
+"...............................",
+"...C.....C.....C.....C.....C...",
+"...............................",
+"...............................",
+"...C.....C.....C.....C.....C...",
+"...............................",
+"...............................",
+"PP.........................PP..",
+"GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG",
+]);
+
+const MAIN_PADDED=padLevel(MAIN_LEVEL);
+
+/* ================================================================
+   GAME STATE
+================================================================ */
+let canvas,ctx;
+let level=[];            // 2D tile array
+let levelW=0, levelH=0;
+let whichLevel='main';   // 'main' | 'under'
+let cam={x:0,y:0};
+let mario={
+  x:64, y:0, vx:0, vy:0,
+  w:20, h:28,           // collision box (small)
+  bigH:52,              // big mario height
+  state:'small',        // small|big|fire
+  facing:1,
+  onGround:false,
+  crouching:false,
+  star:0,               // invincibility timer (frames)
+  alive:true,
+  dyingTimer:0,
+  enterPipe:null,       // {timer, dest}
+  fireCD:0,
+  walkFrame:0,
+};
+let enemies=[];
+let items=[];   // mushrooms, fireflowers
+let fireballs=[];
+let particles=[];
+let coins=0, score=0, lives=3;
+let paused=false, gameOver=false, won=false;
+let msgTimer=0, msgText='';
+let transition=0; // fade timer for pipe transitions
+let mainReturnX=0, mainReturnY=0; // where to return after underground
+
+const keys={};
+const justPressed={};
+
+/* ================================================================
+   LEVEL LOADING
+================================================================ */
+function loadLevel(data){
+  const L=padLevel(data);
+  levelH=L.length; levelW=L[0].length;
+  level=[]; enemies=[]; items=[]; fireballs=[]; particles=[];
+  for(let y=0;y<levelH;y++){
+    level[y]=[];
+    for(let x=0;x<levelW;x++){
+      const ch=L[y][x];
+      let t=T.EMPTY;
+      switch(ch){
+        case 'G': t=T.GROUND; break;
+        case 'B': t=T.BRICK; break;
+        case '?': t=T.QUESTION; break;  // coin
+        case 'M': t=T.QUESTION; break;  // mushroom (mark via meta)
+        case 'F': t=T.QUESTION; break;  // fireflower (mark via meta)
+        case 'P': t=T.PIPE; break;
+        case 'H': t=T.CASTLE; break;
+        case 'C': t=T.COIN; break;
+        default: t=T.EMPTY;
+      }
+      level[y][x]=t;
+      // store block contents
+      if(ch==='M') setBlockContent(x,y,'mushroom');
+      else if(ch==='F') setBlockContent(x,y,'fireflower');
+      else if(ch==='?') setBlockContent(x,y,'coin');
+      // spawn goombas
+      if(ch==='E'){
+        enemies.push({x:x*TILE+2, y:y*TILE, vx:-0.8, vy:0, w:26, h:26, alive:true, squish:0, type:'goomba', walkFrame:0});
+      }
+    }
+  }
+}
+/* block content metadata: maps "x,y" → 'coin'|'mushroom'|'fireflower' */
+const blockContent={};
+function setBlockContent(x,y,c){blockContent[x+','+y]=c;}
+function getBlockContent(x,y){return blockContent[x+','+y]||'coin';}
+
+/* ================================================================
+   INIT
+================================================================ */
+function init(){
+  canvas=document.getElementById('gameCanvas');
+  ctx=canvas.getContext('2d');
+  ctx.imageSmoothingEnabled=false;
+  loadLevel(MAIN_PADDED);
+  // place mario on ground
+  mario.x=64; mario.y=(levelH-3)*TILE;
+  mario.vx=0; mario.vy=0; mario.state='small'; mario.alive=true;
+  setupInput();
+  adjustScale();
+  window.addEventListener('resize',adjustScale);
+  setTimeout(loop, 1000/60);
+}
+function adjustScale(){
+  const w=window.innerWidth, h=window.innerHeight;
+  const s=Math.min(w/1200, h/700, 1.2);
+  document.getElementById('wrapper').style.transform=`scale(${s})`;
+}
+
+/* ================================================================
+   INPUT
+================================================================ */
+function setupInput(){
+  /* map data-key → button element so keyboard presses light up chest buttons */
+  const keyBtnMap={};
+  document.querySelectorAll('.dpad-btn, .act-btn').forEach(b=>keyBtnMap[b.dataset.key]=b);
+
+  /* show reaction image while any control is held */
+  const girl1=document.querySelector('.girl-img-1');
+  const girl2=document.querySelector('.girl-img-2');
+  function refreshPressedState(){
+    const anyHeld = Object.values(keys).some(v=>v);
+    document.body.classList.toggle('pressed', anyHeld);
+    if(girl1 && girl2){
+      girl1.style.opacity = anyHeld ? '0' : '1';
+      girl2.style.opacity = anyHeld ? '1' : '0';
+    }
+  }
+
+  /* keyboard */
+  document.addEventListener('keydown',e=>{
+    if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code)) e.preventDefault();
+    if(!keys[e.code]){
+      justPressed[e.code]=true;
+      initAudio();
+      const b=keyBtnMap[e.code];
+      if(b){ b.classList.add('pressed'); sndAh(); }
+    }
+    keys[e.code]=true;
+    refreshPressedState();
+  });
+  document.addEventListener('keyup',e=>{
+    if(keys[e.code]){
+      const b=keyBtnMap[e.code];
+      if(b) b.classList.remove('pressed');
+    }
+    keys[e.code]=false;
+    refreshPressedState();
+  });
+
+  /* chest buttons */
+  document.querySelectorAll('.dpad-btn, .act-btn').forEach(btn=>{
+    const kc=btn.dataset.key;
+    const press=(ev)=>{
+      ev.preventDefault();
+      initAudio();
+      sndAh();
+      if(!keys[kc]) justPressed[kc]=true;
+      keys[kc]=true;
+      btn.classList.add('pressed');
+      refreshPressedState();
+    };
+    const release=(ev)=>{
+      ev.preventDefault();
+      keys[kc]=false;
+      btn.classList.remove('pressed');
+      refreshPressedState();
+    };
+    btn.addEventListener('mousedown',press);
+    btn.addEventListener('mouseup',release);
+    btn.addEventListener('mouseleave',release);
+    btn.addEventListener('touchstart',press,{passive:false});
+    btn.addEventListener('touchend',release,{passive:false});
+    btn.addEventListener('touchcancel',release,{passive:false});
+  });
+
+  /* start overlay */
+  document.getElementById('startOverlay').addEventListener('click',()=>{
+    initAudio();
+    document.getElementById('startOverlay').classList.add('hidden');
+  });
+}
+
+/* ================================================================
+   PHYSICS / COLLISION HELPERS
+================================================================ */
+function getTile(tx,ty){
+  if(tx<0||ty<0||ty>=levelH||tx>=levelW) return T.EMPTY;
+  return level[ty][tx];
+}
+function setTile(tx,ty,v){
+  if(tx<0||ty<0||ty>=levelH||tx>=levelW) return;
+  level[ty][tx]=v;
+}
+function isSolid(tx,ty){
+  return SOLID.has(getTile(tx,ty));
+}
+/* AABB vs solid tiles, resolve axis by axis */
+function moveX(ent){
+  ent.x += ent.vx;
+  const top=Math.floor(ent.y/TILE);
+  const bot=Math.floor((ent.y+ent.h-1)/TILE);
+  if(ent.vx>0){
+    const rx=Math.floor((ent.x+ent.w-1)/TILE);
+    for(let ty=top;ty<=bot;ty++){
+      if(isSolid(rx,ty)){
+        ent.x=rx*TILE-ent.w; ent.vx=0; return true;
+      }
+    }
+  }else if(ent.vx<0){
+    const lx=Math.floor(ent.x/TILE);
+    for(let ty=top;ty<=bot;ty++){
+      if(isSolid(lx,ty)){
+        ent.x=(lx+1)*TILE; ent.vx=0; return true;
+      }
+    }
+  }
+  return false;
+}
+function moveY(ent){
+  ent.y += ent.vy;
+  const left=Math.floor(ent.x/TILE);
+  const right=Math.floor((ent.x+ent.w-1)/TILE);
+  let hitHead=false, hitGround=false;
+  if(ent.vy>0){
+    const by=Math.floor((ent.y+ent.h-1)/TILE);
+    for(let tx=left;tx<=right;tx++){
+      if(isSolid(tx,by)){
+        ent.y=by*TILE-ent.h; ent.vy=0; hitGround=true;
+        break;
+      }
+    }
+  }else if(ent.vy<0){
+    const ty=Math.floor(ent.y/TILE);
+    for(let tx=left;tx<=right;tx++){
+      if(isSolid(tx,ty)){
+        ent.y=(ty+1)*TILE; ent.vy=0; hitHead={tx,ty};
+        break;
+      }
+    }
+  }
+  return {hitGround, hitHead};
+}
+
+/* ================================================================
+   MARIO UPDATE
+================================================================ */
+function updateMario(){
+  if(!mario.alive){
+    mario.dyingTimer--;
+    mario.y += mario.vy;
+    mario.vy += GRAVITY*0.5;
+    if(mario.dyingTimer<=0){
+      lives--;
+      if(lives<=0){ gameOver=true; showMsg('GAME OVER<br><span style="font-size:14px">Press Triangle to restart</span>',0); }
+      else respawn();
+    }
+    return;
+  }
+
+  if(mario.enterPipe){
+    mario.enterPipe.timer--;
+    if(mario.enterPipe.timer<=0){
+      doPipeTransition(mario.enterPipe.dest);
+      mario.enterPipe=null;
+    }
+    return;
+  }
+
+  const mh = (mario.state==='small') ? mario.h : mario.bigH;
+  /* crouch */
+  mario.crouching = (mario.state!=='small') && keys['KeyS'] && mario.onGround;
+  const curH = mario.crouching ? mario.h : mh;
+
+  /* horizontal input */
+  let move=0;
+  if(keys['KeyA']) move-=1;
+  if(keys['KeyD']) move+=1;
+  if(mario.crouching && mario.onGround) move=0; // can't move while crouching
+  const running = keys['ArrowLeft']; // square = run
+  const spd = running ? RUN : WALK;
+
+  if(move!==0){
+    mario.vx += move*ACCEL;
+    if(mario.vx>spd) mario.vx=spd;
+    if(mario.vx<-spd) mario.vx=-spd;
+    mario.facing=move;
+    mario.walkFrame += Math.abs(mario.vx)*0.15;
+  }else{
+    mario.vx *= FRICTION;
+    if(Math.abs(mario.vx)<0.1) mario.vx=0;
+  }
+
+  /* jump (X button = ArrowDown, or Circle = ArrowRight spin jump) */
+  if((justPressed['ArrowDown']||justPressed['ArrowRight']) && mario.onGround){
+    const jv = running ? RUN_JUMP_V : JUMP_V;
+    mario.vy = jv;
+    mario.onGround=false;
+    sndJump();
+  }
+  /* variable jump height */
+  if(mario.vy<0 && !(keys['ArrowDown']||keys['ArrowRight'])){
+    mario.vy += GRAVITY*1.6; // cut jump short
+  }
+
+  /* fireball (square = ArrowLeft, only in fire state) */
+  if(mario.state==='fire' && justPressed['ArrowLeft'] && mario.fireCD<=0){
+    fireballs.push({
+      x:mario.x + (mario.facing>0?mario.w:0),
+      y:mario.y+curH/2,
+      vx:mario.facing*4, vy:1.5,
+      w:12, h:12, life:120, bounce:1
+    });
+    mario.fireCD=FIRE_CD;
+    sndFire();
+  }
+  if(mario.fireCD>0) mario.fireCD--;
+
+  /* gravity */
+  mario.vy += GRAVITY;
+  if(mario.vy>MAX_FALL_SPEED) mario.vy=MAX_FALL_SPEED;
+
+  /* adjust hitbox height for collision */
+  const oldH=mario.h;
+  if(mario.crouching) mario.h=mario.h; // small box
+  else mario.h=curH;
+
+  /* move */
+  const hbx={x:mario.x,y:mario.y,w:mario.w,h:mario.h};
+  // use temp object for moveX/moveY
+  const ent={x:mario.x,y:mario.y,w:mario.w,h:mario.h,vx:mario.vx,vy:mario.vy};
+  moveX(ent);
+  mario.x=ent.x; mario.vx=ent.vx;
+
+  // check pipe entry before vertical move
+  if(justPressed['KeyS'] && mario.onGround){
+    // check if standing on a pipe
+    const cx=Math.floor((mario.x+mario.w/2)/TILE);
+    const cy=Math.floor((mario.y+mario.h)/TILE); // tile below feet
+    if(getTile(cx,cy)===T.PIPE){
+      // find top of pipe
+      let py=cy;
+      while(py>0 && getTile(cx,py-1)===T.PIPE) py--;
+      mario.enterPipe={timer:40,dest:'under'};
+      mario.x=cx*TILE+ (TILE-mario.w)/2;
+      sndPipe();
+      mainReturnX=mario.x;
+      mainReturnY=py*TILE - mario.h;
+      return;
+    }
+  }
+
+  const yr=moveY(ent);
+  mario.y=ent.y; mario.vy=ent.vy;
+  mario.onGround = !!yr.hitGround;
+  if(yr.hitHead && typeof yr.hitHead==='object'){
+    hitBlock(yr.hitHead.tx, yr.hitHead.ty);
+  }
+
+  /* check if fell in pit */
+  if(mario.y > levelH*TILE + 64){
+    killMario();
+  }
+
+  /* collect coins */
+  collectAtMario();
+  /* enemy collision */
+  checkMarioEnemyCollision();
+  /* item collision */
+  checkMarioItemCollision();
+
+  /* check castle (win) */
+  const mx=Math.floor((mario.x+mario.w/2)/TILE);
+  const my=Math.floor((mario.y+mario.h/2)/TILE);
+  if(getTile(mx,my)===T.CASTLE || mario.x > (levelW-4)*TILE){
+    if(!won){ won=true; sndWin(); showMsg('YOU WIN!<br><span style="font-size:14px">Score: '+score+'</span><br><span style="font-size:12px">Press Triangle to play again</span>',0); }
+  }
+
+  /* invincibility */
+  if(mario.star>0) mario.star--;
+}
+
+function hitBlock(tx,ty){
+  const tile=getTile(tx,ty);
+  if(tile===T.QUESTION){
+    const content=getBlockContent(tx,ty);
+    setTile(tx,ty,T.USED);
+    if(content==='coin'){
+      coins++; score+=200; sndCoin();
+      spawnParticle(tx*TILE+TILE/2, ty*TILE, 'coin');
+    }else if(content==='mushroom'){
+      items.push({x:tx*TILE+4, y:ty*TILE, vx:1.2, vy:0, w:24, h:24, type:'mushroom', emerge:0, onGround:false});
+      sndBump();
+    }else if(content==='fireflower'){
+      items.push({x:tx*TILE+4, y:ty*TILE, vx:0, vy:0, w:24, h:24, type:'fireflower', emerge:0, onGround:false});
+      sndBump();
+    }
+  }else if(tile===T.BRICK){
+    if(mario.state!=='small'){
+      // break brick
+      setTile(tx,ty,T.EMPTY);
+      sndBreak();
+      spawnParticle(tx*TILE+8, ty*TILE+8, 'brick');
+      spawnParticle(tx*TILE+24, ty*TILE+8, 'brick');
+      spawnParticle(tx*TILE+8, ty*TILE+24, 'brick');
+      spawnParticle(tx*TILE+24, ty*TILE+24, 'brick');
+      score+=50;
+    }else{
+      sndBump();
+    }
+  }else if(SOLID.has(tile)){
+    sndBump();
+  }
+}
+
+function collectAtMario(){
+  const left=Math.floor(mario.x/TILE);
+  const right=Math.floor((mario.x+mario.w-1)/TILE);
+  const top=Math.floor(mario.y/TILE);
+  const bot=Math.floor((mario.y+mario.h-1)/TILE);
+  for(let ty=top;ty<=bot;ty++){
+    for(let tx=left;tx<=right;tx++){
+      if(getTile(tx,ty)===T.COIN){
+        setTile(tx,ty,T.EMPTY);
+        coins++; score+=200; sndCoin();
+        spawnParticle(tx*TILE+TILE/2, ty*TILE, 'coin');
+      }
+    }
+  }
+}
+
+function checkMarioEnemyCollision(){
+  for(const e of enemies){
+    if(!e.alive||e.squish>0) continue;
+    if(aabb(mario.x,mario.y,mario.w,mario.h, e.x,e.y,e.w,e.h)){
+      // check if mario is falling onto enemy
+      if(mario.vy>0 && (mario.y+mario.h) < e.y + e.h/2 + 4){
+        // stomp
+        e.alive=false; e.squish=20;
+        mario.vy=JUMP_V*0.6;
+        score+=100; sndStomp();
+      }else if(mario.star>0){
+        e.alive=false; e.squish=20;
+        score+=100; sndStomp();
+      }else{
+        damageMario();
+      }
+    }
+  }
+}
+
+function checkMarioItemCollision(){
+  for(let i=items.length-1;i>=0;i--){
+    const it=items[i];
+    if(it.emerge>0) continue;
+    if(aabb(mario.x,mario.y,mario.w,mario.h, it.x,it.y,it.w,it.h)){
+      if(it.type==='mushroom'){
+        if(mario.state==='small'){
+          mario.state='big';
+          mario.star=30; // brief invincibility
+        }
+        score+=1000; sndPower();
+        items.splice(i,1);
+      }else if(it.type==='fireflower'){
+        if(mario.state==='small') mario.state='big';
+        else mario.state='fire';
+        mario.star=30;
+        score+=1000; sndPower();
+        items.splice(i,1);
+      }
+    }
+  }
+}
+
+function damageMario(){
+  if(mario.star>0) return;
+  if(mario.state==='fire'){ mario.state='big'; mario.star=60; }
+  else if(mario.state==='big'){ mario.state='small'; mario.star=60; mario.h=28; }
+  else killMario();
+}
+
+function killMario(){
+  if(!mario.alive) return;
+  mario.alive=false;
+  mario.dyingTimer=90;
+  mario.vy=-8;
+  sndDie();
+}
+
+function respawn(){
+  mario.alive=true; mario.dyingTimer=0;
+  mario.state='small'; mario.star=0;
+  mario.x=64; mario.y=(levelH-3)*TILE;
+  mario.vx=0; mario.vy=0;
+  mario.h=28;
+  cam.x=0;
+  if(whichLevel!=='main'){
+    whichLevel='main';
+    loadLevel(MAIN_PADDED);
+  }
+}
+
+function hit(a,b){
+  return a.x<b.x+b.w && a.x+a.w>b.x && a.y<b.y+b.h && a.y+a.h>b.y;
+}
+
+/* ================================================================
+   ENEMY UPDATE
+================================================================ */
+function updateEnemies(){
+  for(const e of enemies){
+    if(!e.alive){
+      if(e.squish>0) e.squish--;
+      continue;
+    }
+    /* gravity */
+    e.vy+=GRAVITY;
+    if(e.vy>MAX_FALL) e.vy=MAX_FALL;
+    /* move */
+    const ent={x:e.x,y:e.y,w:e.w,h:e.h,vx:e.vx,vy:e.vy};
+    moveX(ent);
+    if(ent.vx===0) e.vx=-e.vx; // turn at wall
+    e.x=ent.x;
+    const yr=moveY(ent);
+    e.y=ent.y; e.vy=ent.vy;
+    e.walkFrame += Math.abs(e.vx)*0.1;
+    /* turn at edges (don't walk off) */
+    if(yr.hitGround){
+      // check ahead for ground
+      const dir=e.vx>0?1:-1;
+      const fx=Math.floor((e.x + (dir>0?e.w:0) + dir*2)/TILE);
+      const fy=Math.floor((e.y+e.h+2)/TILE);
+      if(!isSolid(fx,fy)){
+        e.vx=-e.vx; // turn around at edge
+      }
+    }
+    /* fell in pit */
+    if(e.y>levelH*TILE+64){ e.alive=false; }
+  }
+  // remove dead far-away enemies
+  enemies=enemies.filter(e=>e.alive||e.squish>0);
+}
+
+/* ================================================================
+   ITEM UPDATE
+================================================================ */
+function updateItems(){
+  for(const it of items){
+    if(it.emerge<TILE){
+      it.emerge+=2; // rising out of block
+      it.y-=2;
+      continue;
+    }
+    if(it.type==='mushroom'){
+      it.vy+=GRAVITY;
+      if(it.vy>MAX_FALL) it.vy=MAX_FALL;
+      const ent={x:it.x,y:it.y,w:it.w,h:it.h,vx:it.vx,vy:it.vy};
+      moveX(ent); it.x=ent.x; it.vx=ent.vx;
+      if(ent.vx===0) it.vx=-it.vx;
+      const yr=moveY(ent); it.y=ent.y; it.vy=ent.vy;
+    }
+    // fireflower stays still
+  }
+  // remove items that fell
+  items=items.filter(it=>it.y<levelH*TILE+64);
+}
+
+/* ================================================================
+   FIREBALL UPDATE
+================================================================ */
+function updateFireballs(){
+  for(let i=fireballs.length-1;i>=0;i--){
+    const f=fireballs[i];
+    f.life--;
+    if(f.life<=0){ fireballs.splice(i,1); continue; }
+    f.vy+=GRAVITY*0.7;
+    if(f.vy>6) f.vy=6;
+    const ent={x:f.x,y:f.y,w:f.w,h:f.h,vx:f.vx,vy:f.vy};
+    moveX(ent);
+    if(ent.vx===0){ fireballs.splice(i,1); continue; }
+    const yr=moveY(ent);
+    if(yr.hitGround){ f.vy=-3.5; } // bounce
+    f.x=ent.x; f.y=ent.y; f.vy=ent.vy;
+    /* hit enemy */
+    let killed=false;
+    for(const e of enemies){
+      if(e.alive && hit(f,e)){
+        e.alive=false; e.squish=20;
+        score+=100; sndStomp();
+        spawnParticle(f.x,f.y,'fire');
+        killed=true; break;
+      }
+    }
+    if(killed) fireballs.splice(i,1);
+  }
+}
+
+/* ================================================================
+   PARTICLES
+================================================================ */
+function spawnParticle(x,y,type){
+  if(type==='brick'){
+    particles.push({x,y,vx:(Math.random()-0.5)*4,vy:-4-Math.random()*3,life:40,type:'brick'});
+  }else if(type==='coin'){
+    particles.push({x,y,vx:0,vy:-5,life:25,type:'coin'});
+  }else if(type==='fire'){
+    for(let i=0;i<5;i++) particles.push({x:x+(Math.random()-0.5)*10,y:y,vx:(Math.random()-0.5)*3,vy:-2-Math.random()*2,life:15,type:'fire'});
+  }
+}
+function updateParticles(){
+  for(let i=particles.length-1;i>=0;i--){
+    const p=particles[i];
+    p.x+=p.vx; p.y+=p.vy;
+    p.vy+=GRAVITY*0.6;
+    p.life--;
+    if(p.life<=0) particles.splice(i,1);
+  }
+}
+
+/* ================================================================
+   PIPE TRANSITION
+================================================================ */
+function doPipeTransition(dest){
+  if(dest==='under'){
+    whichLevel='under';
+    loadLevel(UNDER_LEVEL);
+    // find entry pipe (leftmost pipe top)
+    mario.x=2*TILE+4; mario.y=(levelH-3)*TILE;
+    mario.vx=0; mario.vy=0;
+    cam.x=0;
+  }else if(dest==='main'){
+    whichLevel='main';
+    loadLevel(MAIN_PADDED);
+    mario.x=mainReturnX; mario.y=mainReturnY;
+    mario.vx=0; mario.vy=0;
+    cam.x=Math.max(0, mario.x-CW/2);
+  }
+}
+
+/* check exit pipe in underground */
+function checkUndergroundExit(){
+  if(whichLevel!=='under') return;
+  // right pipe at columns ~28-29
+  const mx=Math.floor((mario.x+mario.w/2)/TILE);
+  if(getTile(mx,Math.floor((mario.y+mario.h)/TILE))===T.PIPE && mario.x > 26*TILE){
+    sndPipe();
+    mario.enterPipe={timer:40,dest:'main'};
+  }
+}
+
+/* ================================================================
+   PAUSE / RESTART
+================================================================ */
+function togglePause(){
+  if(gameOver||won){
+    // restart
+    gameOver=false; won=false;
+    coins=0; score=0; lives=3;
+    whichLevel='main';
+    loadLevel(MAIN_PADDED);
+    respawn();
+    document.getElementById('msgOverlay').classList.remove('active');
+    return;
+  }
+  paused=!paused;
+  sndPause();
+  document.getElementById('pauseOverlay').classList.toggle('active',paused);
+}
+function showMsg(t,dur){
+  msgText=t;
+  const el=document.getElementById('msgOverlay');
+  el.querySelector('#msgText').innerHTML=t;
+  el.classList.add('active');
+  msgTimer=dur;
+}
+
+/* ================================================================
+   UPDATE
+================================================================ */
+function update(){
+  if(paused||gameOver||won) return;
+  if(mario.enterPipe){ updateMario(); return; }
+  updateMario();
+  if(!mario.enterPipe){
+    updateEnemies();
+    updateItems();
+    updateFireballs();
+    updateParticles();
+    checkUndergroundExit();
+  }
+  /* camera */
+  const targetCam=mario.x - CW/2;
+  cam.x += (targetCam-cam.x)*0.15;
+  cam.x=Math.max(0, Math.min(cam.x, levelW*TILE-CW));
+  cam.y=0;
+  if(levelH*TILE>CH) cam.y=Math.max(0, Math.min(mario.y-CH/2, levelH*TILE-CH));
+}
+
+/* ================================================================
+   RENDERING
+================================================================ */
+function render(){
+  // sky
+  ctx.fillStyle = whichLevel==='under' ? '#000' : '#5c94fc';
+  ctx.fillRect(0,0,CW,CH);
+
+  ctx.save();
+  ctx.translate(-Math.round(cam.x), -Math.round(cam.y));
+
+  drawTiles();
+  drawItems();
+  drawFireballs();
+  drawEnemies();
+  drawMario();
+  drawParticles();
+
+  ctx.restore();
+  drawHUD();
+}
+
+function drawTiles(){
+  const sx=Math.floor(cam.x/TILE);
+  const sy=Math.floor(cam.y/TILE);
+  const ex=Math.min(sx+VIEW_TW+1, levelW);
+  const ey=Math.min(sy+VIEW_TH+1, levelH);
+  for(let y=sy;y<ey;y++){
+    for(let x=sx;x<ex;x++){
+      const t=level[y][x];
+      if(t===T.EMPTY) continue;
+      const px=x*TILE, py=y*TILE;
+      switch(t){
+        case T.GROUND: drawGround(px,py); break;
+        case T.BRICK: drawBrick(px,py); break;
+        case T.QUESTION: drawQuestion(px,py); break;
+        case T.USED: drawUsed(px,py); break;
+        case T.PIPE: drawPipe(px,py,x,y); break;
+        case T.CASTLE: drawCastle(px,py); break;
+        case T.COIN: drawCoin(px,py); break;
+        case T.HARD: drawHard(px,py); break;
+      }
+    }
+  }
+}
+
+function drawGround(x,y){
+  ctx.fillStyle='#c84c0c';
+  ctx.fillRect(x,y,TILE,TILE);
+  ctx.fillStyle='#8b2e00';
+  ctx.fillRect(x,y+TILE-4,TILE,4);
+  ctx.fillStyle='#e06000';
+  ctx.fillRect(x,y,TILE,4);
+  // texture dots
+  ctx.fillStyle='#a03000';
+  ctx.fillRect(x+4,y+8,3,3);
+  ctx.fillRect(x+20,y+14,3,3);
+  ctx.fillRect(x+12,y+22,3,3);
+}
+function drawBrick(x,y){
+  ctx.fillStyle='#c84c0c';
+  ctx.fillRect(x,y,TILE,TILE);
+  ctx.fillStyle='#7a2e00';
+  ctx.fillRect(x,y+15,TILE,2);
+  ctx.fillRect(x+15,y,2,TILE);
+  ctx.fillStyle='#e06000';
+  ctx.fillRect(x,y,TILE,2);
+  ctx.fillRect(x,y,2,15);
+}
+function drawQuestion(x,y){
+  // animated glow
+  const f=Math.floor(Date.now()/200)%2;
+  ctx.fillStyle=f? '#fdb813' : '#fde000';
+  ctx.fillRect(x,y,TILE,TILE);
+  ctx.fillStyle='#c08000';
+  ctx.fillRect(x,y,TILE,3);
+  ctx.fillRect(x,y+TILE-3,TILE,3);
+  ctx.fillRect(x,y,3,TILE);
+  ctx.fillRect(x+TILE-3,y,3,TILE);
+  // ? mark
+  ctx.fillStyle='#fff';
+  ctx.font='bold 18px monospace';
+  ctx.textAlign='center';
+  ctx.fillText('?',x+TILE/2,y+TILE-9);
+  ctx.fillStyle='#a06000';
+  ctx.fillRect(x+4,y+4,3,3);
+  ctx.fillRect(x+TILE-7,y+4,3,3);
+  ctx.fillRect(x+4,y+TILE-7,3,3);
+  ctx.fillRect(x+TILE-7,y+TILE-7,3,3);
+}
+function drawUsed(x,y){
+  ctx.fillStyle='#8b8b8b';
+  ctx.fillRect(x,y,TILE,TILE);
+  ctx.fillStyle='#6a6a6a';
+  ctx.fillRect(x,y,TILE,3);
+  ctx.fillRect(x,y+TILE-3,TILE,3);
+  ctx.fillRect(x,y,3,TILE);
+  ctx.fillRect(x+TILE-3,y,3,TILE);
+  ctx.fillStyle='#555';
+  ctx.fillRect(x+4,y+4,3,3);
+  ctx.fillRect(x+TILE-7,y+4,3,3);
+  ctx.fillRect(x+4,y+TILE-7,3,3);
+  ctx.fillRect(x+TILE-7,y+TILE-7,3,3);
+}
+function drawPipe(x,y,tx,ty){
+  const above = getTile(tx,ty-1)===T.PIPE;
+  const left = getTile(tx-1,ty)===T.PIPE;
+  ctx.fillStyle='#0a8000';
+  ctx.fillRect(x,y,TILE,TILE);
+  ctx.fillStyle='#2dba00';
+  if(!above){
+    // pipe top lip
+    ctx.fillStyle='#0a8000';
+    ctx.fillRect(x-2,y,TILE+4,8);
+    ctx.fillStyle='#2dba00';
+    ctx.fillRect(x-2,y,TILE+4,4);
+    ctx.fillStyle='#1a9000';
+    ctx.fillRect(x-2,y,4,8);
+    ctx.fillRect(x+TILE-2,y,4,8);
+  }
+  if(!left){
+    // left edge highlight
+    ctx.fillStyle='#2dba00';
+    ctx.fillRect(x+2,y+(above?0:8),4,TILE-(above?0:8));
+    ctx.fillStyle='#0a6000';
+    ctx.fillRect(x+TILE-6,y+(above?0:8),4,TILE-(above?0:8));
+  }
+}
+function drawCastle(x,y){
+  ctx.fillStyle='#888';
+  ctx.fillRect(x,y,TILE,TILE);
+  ctx.fillStyle='#666';
+  ctx.fillRect(x+2,y+2,6,6);
+  ctx.fillRect(x+14,y+2,6,6);
+  ctx.fillRect(x+24,y+2,6,6);
+  ctx.fillRect(x+2,y+12,6,6);
+  ctx.fillRect(x+14,y+12,6,6);
+  ctx.fillRect(x+24,y+12,6,6);
+  ctx.fillStyle='#555';
+  ctx.fillRect(x,y,2,TILE);
+  ctx.fillRect(x+TILE-2,y,2,TILE);
+}
+function drawCoin(x,y){
+  const t=Date.now()/200;
+  const sw=Math.abs(Math.cos(t))*8+2;
+  ctx.fillStyle='#ffd700';
+  ctx.fillRect(x+TILE/2-sw/2, y+6, sw, TILE-12);
+  ctx.fillStyle='#ffaa00';
+  ctx.fillRect(x+TILE/2-sw/2, y+6, 2, TILE-12);
+}
+function drawHard(x,y){
+  ctx.fillStyle='#aaa';
+  ctx.fillRect(x,y,TILE,TILE);
+  ctx.fillStyle='#888';
+  ctx.fillRect(x,y,TILE,2);
+  ctx.fillRect(x,y+TILE-2,TILE,2);
+}
+
+function drawMario(){
+  const x=Math.round(mario.x), y=Math.round(mario.y);
+  const f=mario.facing;
+  // blink if invincible
+  if(mario.star>0 && Math.floor(mario.star/4)%2===0 && mario.alive) return;
+
+  const big = mario.state!=='small' && !mario.crouching;
+  const h = big ? mario.bigH : mario.h;
+
+  ctx.save();
+  if(!mario.alive){
+    // dying - draw upside down
+    ctx.translate(x+mario.w/2, y);
+    ctx.scale(f<0?-1:1,-1);
+    ctx.translate(-mario.w/2, 0);
+    drawMarioSprite(0, 0, mario.w, mario.h, false, false);
+  }else if(f<0){
+    ctx.translate(x+mario.w, y);
+    ctx.scale(-1,1);
+    drawMarioSprite(0, 0, mario.w, h, big, mario.state==='fire');
+  }else{
+    drawMarioSprite(x, y, mario.w, h, big, mario.state==='fire');
+  }
+  ctx.restore();
+}
+
+function drawMarioSprite(x,y,w,h,big,fire){
+  const pal = fire ? {
+    hat:'#e80000', shirt:'#fff', overall:'#e80000', shoe:'#5a0000',
+    skin:'#ffcc99', hair:'#5a3000'
+  } : {
+    hat:'#e80000', shirt:'#e80000', overall:'#0044ff', shoe:'#5a3000',
+    skin:'#ffcc99', hair:'#5a3000'
+  };
+
+  const walkOffset = mario.onGround ? Math.sin(mario.walkFrame)*1.5 : 0;
+  if(!big){
+    // small mario 20x28
+    // hat
+    ctx.fillStyle=pal.hat;
+    ctx.fillRect(x+2,y,w-4,5);
+    ctx.fillRect(x,y+2,w,3);
+    // hair sides
+    ctx.fillStyle=pal.hair;
+    ctx.fillRect(x,y+5,3,4);
+    ctx.fillRect(x+w-3,y+5,3,4);
+    // face
+    ctx.fillStyle=pal.skin;
+    ctx.fillRect(x+3,y+5,w-6,8);
+    // eye
+    ctx.fillStyle='#000';
+    ctx.fillRect(x+w-8,y+6,2,3);
+    // mustache
+    ctx.fillStyle=pal.hair;
+    ctx.fillRect(x+w-9,y+10,5,2);
+    // shirt
+    ctx.fillStyle=pal.shirt;
+    ctx.fillRect(x,y+13,w,6);
+    // overall
+    ctx.fillStyle=pal.overall;
+    ctx.fillRect(x+2,y+16,w-4,5);
+    // arms
+    ctx.fillStyle=pal.skin;
+    ctx.fillRect(x,y+13,3,4);
+    ctx.fillRect(x+w-3,y+13,3,4);
+    // shoes (with walk offset)
+    ctx.fillStyle=pal.shoe;
+    ctx.fillRect(x+1,y+24+Math.max(0,walkOffset),7,4);
+    ctx.fillRect(x+w-8,y+24-Math.max(0,-walkOffset),7,4);
+  }else{
+    // big mario 20x52
+    // hat
+    ctx.fillStyle=pal.hat;
+    ctx.fillRect(x+2,y,w-4,6);
+    ctx.fillRect(x,y+3,w,4);
+    // hair
+    ctx.fillStyle=pal.hair;
+    ctx.fillRect(x,y+7,4,6);
+    ctx.fillRect(x+w-4,y+7,4,6);
+    // face
+    ctx.fillStyle=pal.skin;
+    ctx.fillRect(x+4,y+7,w-8,12);
+    // eye
+    ctx.fillStyle='#000';
+    ctx.fillRect(x+w-9,y+9,2,4);
+    // mustache
+    ctx.fillStyle=pal.hair;
+    ctx.fillRect(x+w-11,y+15,7,3);
+    // shirt
+    ctx.fillStyle=pal.shirt;
+    ctx.fillRect(x,y+19,w,10);
+    // overall straps
+    ctx.fillStyle=pal.overall;
+    ctx.fillRect(x+2,y+19,4,6);
+    ctx.fillRect(x+w-6,y+19,4,6);
+    // overall body
+    ctx.fillStyle=pal.overall;
+    ctx.fillRect(x+2,y+25,w-4,12);
+    // buttons
+    ctx.fillStyle='#ffd700';
+    ctx.fillRect(x+3,y+28,3,3);
+    ctx.fillRect(x+w-6,y+28,3,3);
+    // arms
+    ctx.fillStyle=pal.skin;
+    ctx.fillRect(x,y+19,4,8);
+    ctx.fillRect(x+w-4,y+19,4,8);
+    // shoes
+    ctx.fillStyle=pal.shoe;
+    const lo=Math.round(walkOffset);
+    ctx.fillRect(x+1,y+h-5+Math.max(0,lo),8,5);
+    ctx.fillRect(x+w-9,y+h-5+Math.max(0,-lo),8,5);
+  }
+}
+
+function drawEnemies(){
+  for(const e of enemies){
+    if(!e.alive){
+      if(e.squish>0){
+        // squished goomba
+        ctx.fillStyle='#8b4500';
+        ctx.fillRect(e.x, e.y+e.h-6, e.w, 6);
+        ctx.fillStyle='#553300';
+        ctx.fillRect(e.x+4, e.y+e.h-3, e.w-8, 2);
+      }
+      continue;
+    }
+    const x=e.x, y=e.y;
+    // goomba body
+    ctx.fillStyle='#8b4500';
+    // dome head
+    ctx.fillRect(x+4,y,e.w-8, e.h-10);
+    ctx.fillRect(x+2,y+4,e.w-4,e.h-16);
+    ctx.fillRect(x,y+8,e.w,e.h-20);
+    // top highlight
+    ctx.fillStyle='#a05000';
+    ctx.fillRect(x+6,y+2,e.w-12,4);
+    // eyes
+    ctx.fillStyle='#fff';
+    ctx.fillRect(x+5,y+8,5,6);
+    ctx.fillRect(x+e.w-10,y+8,5,6);
+    ctx.fillStyle='#000';
+    ctx.fillRect(x+7,y+10,2,3);
+    ctx.fillRect(x+e.w-8,y+10,2,3);
+    // angry brows
+    ctx.fillStyle='#400';
+    ctx.fillRect(x+5,y+7,5,2);
+    ctx.fillRect(x+e.w-10,y+7,5,2);
+    // feet (walk animation)
+    ctx.fillStyle='#400';
+    const fo=Math.sin(e.walkFrame)*3;
+    ctx.fillRect(x+1,y+e.h-4+fo,8,4);
+    ctx.fillRect(x+e.w-9,y+e.h-4-fo,8,4);
+  }
+}
+
+function drawItems(){
+  for(const it of items){
+    const x=it.x, y=it.y;
+    if(it.type==='mushroom'){
+      ctx.fillStyle='#e80000';
+      ctx.fillRect(x+2,y,it.w-4,it.h/2);
+      ctx.fillStyle='#fff';
+      ctx.fillRect(x+5,y+3,4,4);
+      ctx.fillRect(x+it.w-9,y+3,4,4);
+      ctx.fillRect(x+5,y+it.h/2-7,4,4);
+      ctx.fillRect(x+it.w-9,y+it.h/2-7,4,4);
+      ctx.fillStyle='#ffcc99';
+      ctx.fillRect(x,y+it.h/2,it.w,it.h/2);
+      ctx.fillStyle='#000';
+      ctx.fillRect(x+5,y+it.h/2+3,3,4);
+      ctx.fillRect(x+it.w-8,y+it.h/2+3,3,4);
+    }else if(it.type==='fireflower'){
+      ctx.fillStyle='#e80000';
+      ctx.fillRect(x+4,y+2,it.w-8,it.h-8);
+      ctx.fillStyle='#fff';
+      ctx.fillRect(x+2,y+4,3,3);
+      ctx.fillRect(x+it.w-5,y+4,3,3);
+      ctx.fillRect(x+2,y+it.h-8,3,3);
+      ctx.fillRect(x+it.w-5,y+it.h-8,3,3);
+      ctx.fillStyle='#ffd700';
+      ctx.fillRect(x+8,y+8,4,4);
+      ctx.fillRect(x+it.w-12,y+8,4,4);
+      // stem
+      ctx.fillStyle='#0a8000';
+      ctx.fillRect(x+it.w/2-2,y+it.h-4,4,4);
+    }
+  }
+}
+
+function drawFireballs(){
+  for(const f of fireballs){
+    ctx.fillStyle='#ff4400';
+    ctx.beginPath();
+    ctx.arc(f.x+f.w/2, f.y+f.h/2, f.w/2, 0, Math.PI*2);
+    ctx.fill();
+    ctx.fillStyle='#ffaa00';
+    ctx.beginPath();
+    ctx.arc(f.x+f.w/2, f.y+f.h/2, f.w/3, 0, Math.PI*2);
+    ctx.fill();
+  }
+}
+
+function drawParticles(){
+  for(const p of particles){
+    if(p.type==='brick'){
+      ctx.fillStyle='#c84c0c';
+      ctx.fillRect(p.x,p.y,6,6);
+    }else if(p.type==='coin'){
+      ctx.fillStyle='#ffd700';
+      ctx.fillRect(p.x-2,p.y-4,4,8);
+    }else if(p.type==='fire'){
+      ctx.fillStyle='#ff8800';
+      ctx.fillRect(p.x,p.y,3,3);
+    }
+  }
+}
+
+function drawHUD(){
+  document.getElementById('scoreEl').textContent=String(score).padStart(6,'0');
+  document.getElementById('coinsEl').textContent=String(coins).padStart(2,'0');
+  document.getElementById('livesEl').textContent=lives;
+}
+
+/* ================================================================
+   GAME LOOP
+================================================================ */
+function loop(){
+  if(justPressed['ArrowUp'] && !mario.enterPipe){
+    togglePause();
+  }
+  if(!paused){
+    update();
+  }
+  render();
+  // clear justPressed
+  for(const k in justPressed) delete justPressed[k];
+  setTimeout(loop, 1000/60);
+}
+
+/* fix aabb function */
+function aabb(ax,ay,aw,ah,bx,by,bw,bh){
+  return ax<bx+bw && ax+aw>bx && ay<by+bh && ay+ah>by;
+}
+
+/* start */
+init();
+</script>
+</body>
+</html>
